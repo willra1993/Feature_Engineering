@@ -1,43 +1,91 @@
-# 🎯 Feature Engineering
-## 📝 Descrição do Desafio
-A Quantum Finance possui um modelo de risco de crédito desatualizado, que tem concedido cartões para um número muito alto de mal pagadores, gerando problemas financeiros para a companhia. Neste contexto, a HEAD de Ciência de Dados convocou os melhores talentos de sua equipe para ajudar na construção de um novo modelo que será utilizado antes da concessão de cartões de crédito aos requerentes.
+# Feature Engineering para risco de crédito
 
-Uma primeira análise no dataset mostrou que será necessário despender grande esforço em Feature Engineering antes do desenvolvimento do modelo. O desafio será realizar melhorias no dataset baseadas nas melhores práticas de Feature Engineering para que, num momento posterior, seja feito o desenvolvimento do modelo.
+[![CI](https://github.com/willra1993/Feature_Engineering/actions/workflows/ci.yml/badge.svg)](https://github.com/willra1993/Feature_Engineering/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 
-## 🛠️ Configuração e Dependências
-Para executar o notebook, é necessário ter as seguintes dependências instaladas:
+Projeto de preparação de dados para um problema de classificação de risco de crédito. O objetivo é transformar uma base cadastral bruta em atributos consistentes e reproduzíveis, prontos para alimentar modelos de machine learning sem introduzir vazamento entre treino e teste.
 
-1. matplotlib
-2. sweetviz
-3. pandas
-4. numpy
-5. seaborn
+## Contexto
 
+A base contém 50.000 solicitações de cartão, 54 colunas e a variável-alvo `MAU_PAGADOR`. Na amostra disponível, 13.041 registros (26,08%) pertencem à classe positiva. O notebook documenta a exploração original; o pipeline em Python oferece uma execução limpa e testável da preparação e de um modelo de referência.
 
-## 📊 Dataset
-O dataset utilizado contém 50 mil entradas com diversas informações relacionadas aos solicitantes de cartões de crédito. Foi necessário realizar um amplo trabalho de Feature Engineering para preparar esses dados para a modelagem.
+Este projeto trata o modelo apenas como baseline técnico. Uma decisão real de crédito exige validação temporal, análise de viés, explicabilidade, monitoramento e revisão das exigências regulatórias aplicáveis.
 
-## 📑 Estrutura do Notebook
-1. Introdução: Contextualização do desafio e objetivos.
-2. Configuração e Dependências: Listagem das bibliotecas necessárias.
-3. Importação do Dataset: Carregamento e visualização inicial dos dados.
-4. Feature Engineering: Aplicação das técnicas de engenharia de características para melhoria do dataset.
-5. Análise Exploratória: Visualização e análise dos dados após o processo de Feature Engineering.
-6. Conclusão: Resumo dos resultados e próximos passos para a modelagem do risco de crédito.
-   
-## 🚀 Como Usar
+## Decisões técnicas
 
-1. Clone o repositório:
-2. Navegue até o diretório do projeto:
-3. Instale as dependências
-4. Baixe a base dataset.txt no diretório do projeto
-5. Execute o notebook
+- valores sentinela como `NULL`, campos em branco e `#DIV/0!` são tratados como ausentes;
+- identificadores, atributos constantes e campos de cardinalidade muito alta são removidos do baseline;
+- variáveis numéricas recebem imputação pela mediana e normalização Min-Max;
+- variáveis categóricas recebem imputação pela moda e codificação one-hot tolerante a categorias inéditas;
+- todas as transformações aprendidas são ajustadas somente nos dados de treino por meio de um `Pipeline` do scikit-learn;
+- a divisão é estratificada e determinística;
+- o baseline usa regressão logística com pesos balanceados para reduzir o impacto do desbalanceamento da classe-alvo.
 
-## 🤝 Contribuição
-Sinta-se à vontade para contribuir com sugestões, correções ou melhorias. Para isso, siga os passos abaixo:
+## Resultado do baseline
 
-1. Faça um fork do projeto.
-2. Crie uma branch para a sua feature (git checkout -b feature/nova-feature).
-3. Faça o commit das suas alterações (git commit -m 'Adiciona nova feature').
-4. Faça o push para a branch (git push origin feature/nova-feature).
-5. Abra um Pull Request.
+Com a divisão padrão (`test_size=0.20`, `random_state=42`), o pipeline produz o seguinte ponto de referência:
+
+| Métrica | Resultado |
+| --- | ---: |
+| Acurácia | 0,5748 |
+| Acurácia balanceada | 0,5803 |
+| Precisão | 0,3262 |
+| Recall | 0,5916 |
+| F1-score | 0,4206 |
+| ROC AUC | 0,6127 |
+
+Esses valores servem para verificar a execução e comparar experimentos futuros. Eles não representam uma estimativa de desempenho em produção.
+
+## Como executar
+
+Requer Python 3.10 ou superior.
+
+```bash
+git clone https://github.com/willra1993/Feature_Engineering.git
+cd Feature_Engineering
+python -m venv .venv
+```
+
+Ative o ambiente virtual:
+
+```bash
+# Linux ou macOS
+source .venv/bin/activate
+
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+```
+
+Instale o projeto e execute o baseline:
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install -e .
+feature-engineering --data dataset.txt --report artifacts/metrics.json
+```
+
+O comando imprime as métricas no terminal e, quando `--report` é informado, salva o mesmo resultado em JSON. Para abrir a análise exploratória:
+
+```bash
+python -m pip install -e ".[notebook]"
+jupyter lab Feature_Engineering.ipynb
+```
+
+## Qualidade e testes
+
+As verificações locais reproduzem o que é executado automaticamente no GitHub Actions:
+
+```bash
+python -m pip install -e ".[dev]"
+ruff check .
+pytest
+```
+
+Os testes cobrem o contrato de preparação dos dados e o comportamento do pipeline diante de valores ausentes e categorias não observadas no treino.
+
+## Limitações
+
+- o dataset não contém documentação de origem, período de referência ou licença de redistribuição;
+- o experimento usa uma divisão aleatória, adequada para demonstração, mas insuficiente para estimar desempenho futuro em produção;
+- a remoção de campos de alta cardinalidade é uma escolha conservadora de baseline, não uma conclusão definitiva sobre seu valor preditivo;
+- métricas agregadas não substituem análise de custo de erro, calibração, estabilidade e equidade entre grupos.
